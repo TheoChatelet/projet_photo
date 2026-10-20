@@ -1,0 +1,29 @@
+12:50:21 [App     ] OpenMVS x64 v2.4.0
+12:50:21 [App     ] Build date: Jan 20 2026, 00:13:37
+12:50:21 [App     ] CPU: 13th Gen Intel(R) Core(TM) i5-1345U (12 cores)
+12:50:21 [App     ] RAM: 15.66GB Physical Memory 128.00TB Virtual Memory
+12:50:21 [App     ] OS: Windows 11+ x64
+12:50:21 [App     ] Disk: 106.37GB (237.37GB) space
+12:50:21 [App     ] SSE & AVX compatible CPU & OS detected
+12:50:21 [App     ] Command line: TextureMesh scene_dense_mesh.mvs --archive-type 2
+12:50:21 [Scene   ] Scene loaded (154ms):
+	34 images (34 calibrated) with a total of 54.44 MPixels (1.60 MPixels/image)
+	0 points, 149745 vertices, 299486 faces
+12:50:43 [ScnTextr] Assigning the best view to each face completed: 299486 faces, 3984 patches (22s166ms)
+12:50:48 [ScnTextr] Generating texture atlas and image completed: 3328 patches, 2048 image size, 1 textures (4s759ms)
+12:50:48 [App     ] Mesh texturing completed: 149745 vertices, 299486 faces (26s944ms)
+12:50:48 [Mesh    ] Mesh 'scene_dense_mesh_texture.ply' saved: 149745 vertices, 299486 faces (515ms)
+12:50:49 [Scene   ] Scene saved (1s144ms):
+	34 images (34 calibrated)
+	0 points, 149745 vertices, 299486 faces
+12:50:49 [App     ] MEMORYINFO: {
+12:50:49 [App     ] 	PageFaultCount 789171
+12:50:49 [App     ] 	PeakWorkingSetSize 727.19MB
+12:50:49 [App     ] 	WorkingSetSize 22.94MB
+12:50:49 [App     ] 	QuotaPeakPagedPoolUsage 117.05KB
+12:50:49 [App     ] 	QuotaPagedPoolUsage 103.57KB
+12:50:49 [App     ] 	QuotaPeakNonPagedPoolUsage 39.05KB
+12:50:49 [App     ] 	QuotaNonPagedPoolUsage 24.05KB
+12:50:49 [App     ] 	PagefileUsage 16.12MB
+12:50:49 [App     ] 	PeakPagefileUsage 732.27MB
+12:50:49 [App     ] } ENDINFO

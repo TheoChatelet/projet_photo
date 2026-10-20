@@ -1,0 +1,25 @@
+12:48:47 [App     ] OpenMVS x64 v2.4.0
+12:48:47 [App     ] Build date: Jan 20 2026, 00:13:37
+12:48:47 [App     ] CPU: 13th Gen Intel(R) Core(TM) i5-1345U (12 cores)
+12:48:47 [App     ] RAM: 15.66GB Physical Memory 128.00TB Virtual Memory
+12:48:47 [App     ] OS: Windows 11+ x64
+12:48:47 [App     ] Disk: 106.67GB (237.37GB) space
+12:48:47 [App     ] SSE & AVX compatible CPU & OS detected
+12:48:48 [App     ] Command line: InterfaceCOLMAP -i C:\Prog\projet_photo\colmap_workspace\openmvs\undistorted -o scene.mvs --image-folder C:\Prog\projet_photo\colmap_workspace\openmvs\undistorted\images
+12:48:48 [App     ] Reading cameras: C:/Prog/projet_photo/colmap_workspace/openmvs/undistorted/sparse/cameras.bin
+12:48:48 [App     ] Reading images: C:/Prog/projet_photo/colmap_workspace/openmvs/undistorted/sparse/images.bin
+12:48:48 [App     ] Reading points: C:/Prog/projet_photo/colmap_workspace/openmvs/undistorted/sparse/points3D.bin
+12:48:48 [App     ] Reading patch-match configuration: C:/Prog/projet_photo/colmap_workspace/openmvs/undistorted/stereo/patch-match.cfg
+12:48:48 [App     ] Reading depth-maps/normal-maps: C:/Prog/projet_photo/colmap_workspace/openmvs/undistorted/stereo/depth_maps/ and C:/Prog/projet_photo/colmap_workspace/openmvs/undistorted/stereo/normal_maps/
+12:48:48 [App     ] Exported data: 34 images, 12237 points (44ms)
+12:48:48 [App     ] MEMORYINFO: {
+12:48:48 [App     ] 	PageFaultCount 2667
+12:48:48 [App     ] 	PeakWorkingSetSize 9.20MB
+12:48:48 [App     ] 	WorkingSetSize 7.12MB
+12:48:48 [App     ] 	QuotaPeakPagedPoolUsage 64.22KB
+12:48:48 [App     ] 	QuotaPagedPoolUsage 63.66KB
+12:48:48 [App     ] 	QuotaPeakNonPagedPoolUsage 11.56KB
+12:48:48 [App     ] 	QuotaNonPagedPoolUsage 11.30KB
+12:48:48 [App     ] 	PagefileUsage 2.77MB
+12:48:48 [App     ] 	PeakPagefileUsage 4.68MB
+12:48:48 [App     ] } ENDINFO

@@ -1,0 +1,69 @@
+12:50:13 [App     ] OpenMVS x64 v2.4.0
+12:50:13 [App     ] Build date: Jan 20 2026, 00:13:37
+12:50:13 [App     ] CPU: 13th Gen Intel(R) Core(TM) i5-1345U (12 cores)
+12:50:13 [App     ] RAM: 15.66GB Physical Memory 128.00TB Virtual Memory
+12:50:13 [App     ] OS: Windows 11+ x64
+12:50:13 [App     ] Disk: 106.38GB (237.37GB) space
+12:50:13 [App     ] SSE & AVX compatible CPU & OS detected
+12:50:13 [App     ] Command line: ReconstructMesh scene_dense.mvs -p scene_dense.ply -o scene_dense_mesh.mvs --archive-type 2
+12:50:13 [Scene   ] Camera model loaded: platform 0; camera  0; f 2.241x2.241; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 1; camera  0; f 2.219x2.219; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 2; camera  0; f 2.220x2.220; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 3; camera  0; f 2.247x2.247; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 4; camera  0; f 2.215x2.215; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 5; camera  0; f 2.215x2.215; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 6; camera  0; f 2.214x2.214; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 7; camera  0; f 2.236x2.236; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 8; camera  0; f 2.216x2.216; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 9; camera  0; f 2.228x2.228; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 10; camera  0; f 2.266x2.266; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 11; camera  0; f 2.250x2.250; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 12; camera  0; f 2.256x2.256; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 13; camera  0; f 2.223x2.223; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 14; camera  0; f 2.225x2.225; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 15; camera  0; f 2.236x2.236; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 16; camera  0; f 2.225x2.225; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 17; camera  0; f 2.231x2.231; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 18; camera  0; f 2.229x2.229; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 19; camera  0; f 2.245x2.245; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 20; camera  0; f 2.241x2.241; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 21; camera  0; f 2.255x2.255; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 22; camera  0; f 2.254x2.254; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 23; camera  0; f 2.245x2.245; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 24; camera  0; f 2.234x2.234; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 25; camera  0; f 2.259x2.259; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 26; camera  0; f 2.278x2.278; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 27; camera  0; f 2.257x2.257; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 28; camera  0; f 2.263x2.263; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 29; camera  0; f 2.249x2.249; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 30; camera  0; f 2.266x2.266; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 31; camera  0; f 2.234x2.234; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 32; camera  0; f 2.234x2.234; poses 1
+12:50:13 [Scene   ] Camera model loaded: platform 33; camera  0; f 2.218x2.218; poses 1
+12:50:13 [Scene   ] Scene loaded in interface format from 'scene_dense.mvs' (31ms):
+	34 images (34 calibrated) with a total of 13.60 MPixels (0.40 MPixels/image)
+	12237 points, 0 vertices, 0 faces
+12:50:13 [PointCld] Point-cloud 'scene_dense.ply' loaded: 203100 points (66ms)
+12:50:14 [Mesh    ] Delaunay tetrahedralization completed: 203100 points -> 164951 vertices, 1001776 (+274) cells, 2003689 (+411) faces (1s257ms)
+12:50:16 [ScnRecnt] Delaunay tetrahedras weighting completed: 1002050 cells, 2004100 faces (2s169ms)
+12:50:18 [ScnRecnt] Delaunay tetrahedras graph-cut completed (135959 flow): 149745 vertices, 299486 faces (1s754ms)
+12:50:18 [App     ] Mesh reconstruction completed: 149745 vertices, 299486 faces (5s401ms)
+12:50:18 [App     ] Mesh trimmed to ROI: 0 vertices and 0 faces removed (7ms)
+12:50:19 [Mesh    ] Cleaned mesh: 149745 vertices, 299486 faces (654ms)
+12:50:19 [Mesh    ] Cleaned mesh: 149745 vertices, 299486 faces (529ms)
+12:50:20 [Mesh    ] Cleaned mesh: 149745 vertices, 299486 faces (405ms)
+12:50:20 [Mesh    ] Mesh 'scene_dense_mesh.ply' saved: 149745 vertices, 299486 faces (33ms)
+12:50:20 [Scene   ] Scene saved (243ms):
+	34 images (34 calibrated)
+	0 points, 149745 vertices, 299486 faces
+12:50:20 [App     ] MEMORYINFO: {
+12:50:20 [App     ] 	PageFaultCount 247494
+12:50:20 [App     ] 	PeakWorkingSetSize 348.61MB
+12:50:20 [App     ] 	WorkingSetSize 15.07MB
+12:50:20 [App     ] 	QuotaPeakPagedPoolUsage 89.01KB
+12:50:20 [App     ] 	QuotaPagedPoolUsage 88.45KB
+12:50:20 [App     ] 	QuotaPeakNonPagedPoolUsage 20.20KB
+12:50:20 [App     ] 	QuotaNonPagedPoolUsage 18.73KB
+12:50:20 [App     ] 	PagefileUsage 10.40MB
+12:50:20 [App     ] 	PeakPagefileUsage 363.10MB
+12:50:20 [App     ] } ENDINFO
