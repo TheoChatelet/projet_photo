@@ -32,6 +32,7 @@ Lancement seul : python echelle.py [--travail colmap_workspace]
 """
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -513,6 +514,22 @@ def echelle_depuis_distance(distance_unites, distance_mm):
 # ----------------------------------------------------------------------
 # Lecture / écriture de echelle.json
 # ----------------------------------------------------------------------
+def empreinte_reconstruction(dossier_sparse):
+    """Empreinte du contenu d'une reconstruction COLMAP (poses des caméras), ou None si illisible.
+
+    Elle est enregistrée dans echelle.json : si la reconstruction est refaite ensuite, l'échelle
+    calculée pour l'ancienne ne vaut plus rien, et mesure.py peut le détecter.
+    """
+    h, trouve = hashlib.sha256(), False
+    for nom in ("cameras.bin", "images.bin", "cameras.txt", "images.txt"):
+        chemin = os.path.join(dossier_sparse, nom)
+        if os.path.isfile(chemin):
+            with open(chemin, "rb") as f:
+                h.update(nom.encode() + b"\0" + f.read())
+            trouve = True
+    return h.hexdigest() if trouve else None
+
+
 def chemin_echelle(dossier_travail):
     return os.path.join(dossier_travail, "echelle.json")
 
@@ -610,6 +627,7 @@ def lancer_echelle(dossier_travail="colmap_workspace", chemin_mise_en_page="cibl
           f"{sum(1 for v in vues if v.marqueurs)} d'entre elles.")
 
     resultat = calculer_echelle_cible(vues, mise_en_page)
+    resultat["reconstruction"] = {"empreinte": empreinte_reconstruction(chemin_sparse)}
     chemin = ecrire_echelle(dossier_travail, resultat)
     print(resumer(resultat))
     print(f"Écrit : {chemin}")

@@ -158,3 +158,36 @@ def echelle_vraie(vrai):
     return {"version": 1, "methode": "cible_aruco", "mm_par_unite": float(vrai.s),
             "transformation_4x4": T.tolist(), "fiable": True, "avertissements": [], "notes": [],
             "qualite": {"incertitude_echelle_pct": 0.05}}
+
+
+def fabriquer_dossier_de_travail(racine, mise_en_page=None, nb=12, rendre=True, s=137.0):
+    """colmap_workspace synthétique : sparse_final + images_redimensionnees, vérité connue.
+
+    Écrit une vraie reconstruction pycolmap et des images PNG rendues de la cible ; renvoie la SimilitudeVraie.
+    """
+    import os
+
+    import cv2
+    import pycolmap
+
+    from generer_cible_echelle import construire_mise_en_page
+
+    mise_en_page = mise_en_page or construire_mise_en_page()
+    vrai = SimilitudeVraie(s, axe="x", angle=70.0)
+    rec = pycolmap.Reconstruction()
+    dossier_images = os.path.join(racine, "images_redimensionnees")
+    os.makedirs(dossier_images)
+    for n, c in enumerate(positions_autour(nb, graine=4), start=1):
+        cam = pycolmap.Camera.create_from_model_id(
+            n, pycolmap.CameraModelId.SIMPLE_RADIAL, FOCALE, LARGEUR, HAUTEUR)
+        rec.add_camera_with_trivial_rig(cam)
+        R, t = camera_regarde(c, (0, 0, 0))
+        img = pycolmap.Image(name=f"{n:02d}.png", camera_id=n, image_id=n)
+        rec.add_image_with_trivial_frame(img, pycolmap.Rigid3d(vrai.cam_from_world_colmap(R, t)))
+        image = rendre_image(mise_en_page, R, t, graine=n) if rendre else np.full((HAUTEUR, LARGEUR), 160, np.uint8)
+        ok, tampon = cv2.imencode(".png", image)
+        tampon.tofile(os.path.join(dossier_images, f"{n:02d}.png"))
+    sparse = os.path.join(racine, "sparse_final")
+    os.makedirs(sparse)
+    rec.write(sparse)
+    return vrai

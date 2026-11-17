@@ -226,7 +226,6 @@ def test_chaine_complete_sur_images_rendues():
 
 
 def test_detection_ignore_les_marqueurs_hors_cible():
-    vrai = synth.SimilitudeVraie(S_VRAIE)
     R, t = synth.camera_regarde(synth.positions_autour(1)[0], (0, 0, 0))
     image = synth.rendre_image(MEP, R, t)
     tous = e.detecter_marqueurs(image, MEP["dictionnaire"])

@@ -38,7 +38,7 @@ from datetime import datetime
 
 import numpy as np
 
-from echelle import ErreurEchelle, charger_echelle
+from echelle import ErreurEchelle, charger_echelle, empreinte_reconstruction
 
 # Tolérance pour dire qu'un sommet est dans le plan de coupe (mm)
 EPS_PLAN = 1e-9
@@ -440,6 +440,32 @@ def construire_maillage_ferme(V, F, boucles_plan, boucles_trous, z0, prolonger):
     return np.vstack(morceaux_V), np.vstack(morceaux_F), notes
 
 
+def hauteur_robuste(V, F, facteur_rayon=3.0):
+    """Hauteur maximale après moyenne locale des z (rayon = 3 arêtes « courtes »).
+
+    La hauteur « brute » (point le plus haut) est biaisée vers le haut par le bruit de surface :
+    sur un dessus plat de ~100 sommets, le plus haut est à environ +2,4 écarts-types du vrai plan.
+    On moyenne donc le z de chaque sommet voisin du sommet avec tous les sommets situés dans un
+    rayon de quelques arêtes (la distance, pas les liens du maillage : le résultat ne dépend pas
+    de la forme des triangles). Le rayon suit la densité du maillage : sur un maillage fin le sommet
+    d'un dôme est abaissé de r²/(4R) (R = rayon de courbure), négligeable devant la hauteur.
+    """
+    from scipy.spatial import cKDTree
+
+    pas = max(1, len(F) // 100000)
+    p = V[F[::pas]]
+    aretes = np.concatenate([np.linalg.norm(p[:, 0] - p[:, 1], axis=1), np.linalg.norm(p[:, 1] - p[:, 2], axis=1),
+                             np.linalg.norm(p[:, 2] - p[:, 0], axis=1)])
+    # 20e centile et pas médiane : un maillage qui mêle arêtes courtes et très longues (pièce de CAO,
+    # maillage décimé) a une médiane trop grande, le rayon couvrirait tout l'objet. Le petit quantile ne
+    # sur-lisse jamais ; sur un maillage de Poisson (arêtes uniformes) il donne la même chose que la médiane.
+    rayon = facteur_rayon * float(np.percentile(aretes, 20))
+    z = V[:, 2]
+    candidats = np.flatnonzero(z > z.max() - 5.0 * rayon)       # seuls les sommets proches du haut comptent
+    voisins = cKDTree(V).query_ball_point(V[candidats], rayon)
+    return float(max(z[idx].mean() for idx in voisins))
+
+
 def part_loin_du_nuage(V, nuage, facteur=FACTEUR_DISTANCE_NUAGE):
     """Part (en %) des sommets du maillage trop loin de tout point du nuage dense.
 
@@ -583,7 +609,8 @@ def mesurer_maillage(V, F, z_coupe_mm=1.0, repere_plateau=True, prolonger=True, 
     if repere_plateau:
         longueur, largeur, angle = rectangle_min(V[:, :2])
         mesures.update({
-            "hauteur_mm": float(maxi[2]),     # le plateau est à z = 0
+            "hauteur_mm": float(maxi[2]),     # le plateau est à z = 0 ; point le plus haut (biaisé par le bruit)
+            "hauteur_robuste_mm": hauteur_robuste(V, F),
             "longueur_mm": longueur,
             "largeur_mm": largeur,
             "angle_empreinte_deg": angle,
@@ -657,6 +684,9 @@ def mesurer_maillage(V, F, z_coupe_mm=1.0, repere_plateau=True, prolonger=True, 
 # Fichiers : lecture, rapports, historique
 # ----------------------------------------------------------------------
 Z_COUPE_MM_DEFAUT = 1.0
+# Un objet scanné ici fait entre quelques mm et quelques mètres : hors de cette plage, l'échelle est fausse
+DIMENSION_MIN_MM = 1.0
+DIMENSION_MAX_MM = 5000.0
 COLONNES_HISTORIQUE = ["date", "nom", "volume_mm3", "volume_ml", "hauteur_mm", "longueur_mm", "largeur_mm",
                        "diametre_equivalent_base_mm", "surface_mm2", "mm_par_unite",
                        "incertitude_echelle_pct", "fiable", "fichier_maillage"]
@@ -686,6 +716,21 @@ def _nombre_fr(x):
     if isinstance(x, (int, float, np.floating, np.integer)):
         return f"{float(x):.7g}".replace(".", ",") if not float(x).is_integer() else str(int(x))
     return str(x)
+
+
+def _verifier_reconstruction(echelle, chemin_echelle, avertissements, notes):
+    """Compare l'empreinte enregistrée dans echelle.json à la reconstruction actuelle (voisine du fichier)."""
+    attendue = (echelle.get("reconstruction") or {}).get("empreinte")
+    if not attendue:
+        return          # échelle manuelle, ou fichier plus ancien : rien à comparer
+    dossier = os.path.join(os.path.dirname(os.path.abspath(chemin_echelle)), "sparse_final")
+    if not os.path.isdir(dossier):
+        notes.append("Reconstruction (sparse_final) introuvable à côté de echelle.json : "
+                     "cohérence échelle/modèle non vérifiable.")
+    elif empreinte_reconstruction(dossier) != attendue:
+        avertissements.append(
+            "La reconstruction COLMAP a changé depuis le calcul de l'échelle : cette échelle est celle d'un autre "
+            "modèle, les mesures sont FAUSSES. Relancer echelle.py sur la reconstruction actuelle.")
 
 
 def _charger_nuage(chemin, echelle):
@@ -728,6 +773,8 @@ def mesurer(chemin_maillage, chemin_echelle=None, dossier_sortie=None, nom=None,
                            "Lancer d'abord echelle.py.")
 
     avertissements, notes = [], []
+    if echelle is not None:
+        _verifier_reconstruction(echelle, chemin_echelle, avertissements, notes)
     if echelle is None:
         unite = "unite_colmap"
         avertissements.append("Aucune échelle : toutes les valeurs sont dans l'unité de COLMAP, PAS en millimètres.")
@@ -758,6 +805,13 @@ def mesurer(chemin_maillage, chemin_echelle=None, dossier_sortie=None, nom=None,
     notes += no
     qualite["faces_degenerees_supprimees"] += nettoyage["faces_degenerees_supprimees"]
     qualite["sommets_fichier"], qualite["faces_fichier"] = nettoyage["sommets_fichier"], nettoyage["faces_fichier"]
+
+    if echelle is not None:
+        plus_grande = max(mesures["boite_axes_mm"])
+        if not DIMENSION_MIN_MM <= plus_grande <= DIMENSION_MAX_MM:
+            avertissements.append(
+                f"Dimensions aberrantes ({plus_grande:.3g} mm pour la plus grande) : échelle d'un autre scan ? "
+                f"Refaire la mise à l'échelle (echelle.py) sur CETTE reconstruction.")
 
     e_qual = (echelle or {}).get("qualite") or {}
     u_echelle = e_qual.get("incertitude_echelle_pct")
@@ -804,12 +858,13 @@ def resume_texte(rapport):
         lignes.append(f"Échelle : {e['mm_par_unite']:.6g} mm/unité ({e['methode']})"
                       + (f", incertitude {e['incertitude_echelle_pct']:.3f} %" if e["incertitude_echelle_pct"] is not None else ""))
     lignes.append("")
-    lignes.append(f"Volume              : {m['volume_mm3']:.1f} {u}³" + (f"  ({m['volume_ml']:.2f} mL)" if u == "mm" else ""))
-    for cle, titre in [("hauteur_mm", "Hauteur"), ("longueur_mm", "Longueur (empreinte)"),
+    lignes.append(f"{'Volume':21s}: {m['volume_mm3']:.1f} {u}³" + (f"  ({m['volume_ml']:.2f} mL)" if u == "mm" else ""))
+    for cle, titre in [("hauteur_mm", "Hauteur (point haut)"), ("hauteur_robuste_mm", "Hauteur (lissée)"),
+                       ("longueur_mm", "Longueur (empreinte)"),
                        ("largeur_mm", "Largeur (empreinte)"), ("diametre_equivalent_base_mm", "Diamètre équivalent base")]:
         if cle in m:
-            lignes.append(f"{titre:20s}: {m[cle]:.2f} {u}")
-    lignes.append(f"Surface             : {m['surface_mm2']:.1f} {u}²")
+            lignes.append(f"{titre:21s}: {m[cle]:.2f} {u}")
+    lignes.append(f"{'Surface':21s}: {m['surface_mm2']:.1f} {u}²")
     lignes.append("")
     coupe = f"coupe à z = {q['z_coupe_mm']:g} {u}" if q["z_coupe_mm"] is not None else "pas de coupe"
     lignes.append(f"Qualité : {q['faces']} triangles, {coupe}, "

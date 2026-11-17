@@ -1,0 +1,11 @@
+﻿# Valeurs de référence mesurées au pied à coulisse sur la pièce étalon.
+# Séparateur ; (virgule ou point acceptés pour les décimales). Les lignes commençant par # sont ignorées.
+# grandeur        : nom d'une mesure de rapport.json (hauteur_mm, hauteur_robuste_mm, longueur_mm, largeur_mm,
+#                   diametre_equivalent_base_mm, aire_base_mm2, surface_mm2, volume_mm3)
+# valeur_ref      : moyenne de vos mesures au pied à coulisse (mm, mm², mm³)
+# incertitude_ref : incertitude-type de cette référence, même unité (voir PROTOCOLE_VALIDATION.md)
+# tolerance       : écart maximal accepté pour un scan, même unité (facultatif)
+grandeur;valeur_ref;incertitude_ref;tolerance;commentaire
+hauteur_mm;40,11;0,02;0,5;moyenne de 5 mesures, 3 positions
+diametre_equivalent_base_mm;50,02;0,02;0,5;moyenne de 3 diamètres
+volume_mm3;78790;60;1500;calculé avec : validation_precision.py ref-volume cylindre

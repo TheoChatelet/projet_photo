@@ -1,0 +1,20 @@
+# Dépendances du projet. Installation : pip install -r requirements.txt
+# (un seul des deux paquets OpenCV : opencv-python OU opencv-contrib-python, pas les deux)
+
+# Reconstruction 3D
+pycolmap>=3.12
+open3d>=0.18
+opencv-python>=4.7          # cv2.aruco (marqueurs de la cible d'échelle) est inclus à partir de la 4.7
+
+# Calcul, maillages, mesures
+numpy>=1.24
+scipy>=1.10
+trimesh>=4.0
+mapbox-earcut>=1.0          # ferme proprement la base du modèle exporté (facultatif : voir mesure.py)
+networkx>=3.0               # réparation de l'orientation des faces (facultatif)
+
+# Validation : graphique de résultats (facultatif)
+matplotlib>=3.7
+
+# Tests : python -m pytest
+pytest>=7

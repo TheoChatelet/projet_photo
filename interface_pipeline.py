@@ -4,7 +4,8 @@ Interface graphique du pipeline de photogrammétrie.
 Interface Tkinter volontairement "classique" (thème par défaut du système,
 aucune couleur imposée) permettant de :
   - lancer chaque étape du pipeline (reconstruction, densification,
-    maillage optionnel) avec ses paramètres modifiables,
+    maillage optionnel, mise à l'échelle et mesures en mm) avec ses
+    paramètres modifiables,
   - suivre la progression dans une console de journal intégrée,
   - visualiser le nuage de points ou le maillage final en 3D, mais
     uniquement sur demande explicite (bouton), jamais automatiquement :
@@ -27,6 +28,9 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 # Chaque étape reste dans son propre fichier pour pouvoir la lancer et la
 # tester seule, sans l'interface
 import densification_openmvs
+import echelle
+import generer_cible_echelle
+import mesure
 from maillage import mailler_et_preparer_impression
 from main import executer_pipeline_securise
 
@@ -66,6 +70,7 @@ class InterfacePipeline:
 
         self.var_masquer_fond = tk.BooleanVar(value=False)
         self.var_repartir_zero_1 = tk.BooleanVar(value=True)
+        self.var_camera_unique = tk.BooleanVar(value=True)
 
         self.var_openmvs_bin = tk.StringVar(value=densification_openmvs.OPENMVS_BIN)
         self.var_repartir_zero_2 = tk.BooleanVar(value=True)
@@ -74,6 +79,11 @@ class InterfacePipeline:
         self.var_limiter_triangles = tk.BooleanVar(value=True)
         self.var_cible_triangles = tk.StringVar(value="1500000")
         self.var_reparer_etancheite = tk.BooleanVar(value=False)
+
+        self.var_mise_en_page = tk.StringVar(value="cible_echelle.json")
+        self.var_taille_marqueur = tk.StringVar(value="")
+        self.var_z_coupe = tk.StringVar(value="1.0")
+        self.var_nom_mesure = tk.StringVar(value="mesure_01")
 
         self.boutons_lancement = []
         self.boutons_affichage = {}
@@ -96,7 +106,7 @@ class InterfacePipeline:
         conteneur.columnconfigure(0, weight=1)
         # Seule la console grandit avec la fenêtre : c'est elle qu'on a
         # besoin de lire en entier, les réglages ont une taille fixe
-        conteneur.rowconfigure(4, weight=1)
+        conteneur.rowconfigure(5, weight=1)
 
         self._section_dossiers(conteneur).grid(
             row=0, column=0, sticky="ew", pady=(0, 6)
@@ -104,14 +114,15 @@ class InterfacePipeline:
         self._section_etape1(conteneur).grid(row=1, column=0, sticky="ew", pady=6)
         self._section_etape2(conteneur).grid(row=2, column=0, sticky="ew", pady=6)
         self._section_etape3(conteneur).grid(row=3, column=0, sticky="ew", pady=6)
+        self._section_etape4(conteneur).grid(row=4, column=0, sticky="ew", pady=6)
         self._section_journal(conteneur).grid(
-            row=4, column=0, sticky="nsew", pady=(6, 0)
+            row=5, column=0, sticky="nsew", pady=(6, 0)
         )
 
         # Barre "indeterminate" (qui défile) car COLMAP et OpenMVS ne donnent
         # pas d'avancement en % : impossible d'afficher une vraie progression
         bas = ttk.Frame(conteneur)
-        bas.grid(row=5, column=0, sticky="ew", pady=(6, 0))
+        bas.grid(row=6, column=0, sticky="ew", pady=(6, 0))
         bas.columnconfigure(0, weight=1)
         self.etiquette_statut = ttk.Label(bas, text="Prêt.", anchor="w")
         self.etiquette_statut.grid(row=0, column=0, sticky="ew")
@@ -163,6 +174,12 @@ class InterfacePipeline:
         ttk.Checkbutton(
             cadre, text="Repartir de zéro", variable=self.var_repartir_zero_1
         ).grid(row=0, column=1, sticky="w", padx=4, pady=3)
+
+        ttk.Checkbutton(
+            cadre,
+            text="Une seule caméra (mêmes réglages pour toutes les photos)",
+            variable=self.var_camera_unique,
+        ).grid(row=0, column=2, sticky="w", padx=4, pady=3)
 
         bouton = ttk.Button(cadre, text="Lancer", command=self._lancer_etape1)
         bouton.grid(row=0, column=4, sticky="e", padx=4, pady=3)
@@ -257,6 +274,44 @@ class InterfacePipeline:
         )
         bouton_afficher_maillage.grid(row=1, column=5, sticky="e", padx=4, pady=3)
         self.boutons_affichage["maillage"] = bouton_afficher_maillage
+
+        return cadre
+
+    def _section_etape4(self, parent):
+        cadre = ttk.LabelFrame(parent, text="Échelle et mesures (en mm)")
+        cadre.columnconfigure(1, weight=1)
+
+        ttk.Label(cadre, text="Cible d'échelle :").grid(
+            row=0, column=0, sticky="w", padx=4, pady=3
+        )
+        ttk.Entry(cadre, textvariable=self.var_mise_en_page).grid(
+            row=0, column=1, sticky="ew", padx=4
+        )
+        ttk.Button(
+            cadre, text="Créer la cible à imprimer", command=self._creer_cible
+        ).grid(row=0, column=2, padx=4, pady=3)
+
+        ttk.Label(cadre, text="Côté d'un marqueur mesuré (mm, facultatif) :").grid(
+            row=1, column=0, sticky="w", padx=4, pady=3
+        )
+        ttk.Entry(cadre, textvariable=self.var_taille_marqueur, width=10).grid(
+            row=1, column=1, sticky="w", padx=4
+        )
+        bouton_echelle = ttk.Button(
+            cadre, text="Calculer l'échelle", command=self._lancer_etape4a
+        )
+        bouton_echelle.grid(row=1, column=2, sticky="e", padx=4, pady=3)
+        self.boutons_lancement.append(bouton_echelle)
+
+        ligne = ttk.Frame(cadre)
+        ligne.grid(row=2, column=0, columnspan=3, sticky="ew", pady=3)
+        ttk.Label(ligne, text="Nom de la mesure :").pack(side="left", padx=4)
+        ttk.Entry(ligne, textvariable=self.var_nom_mesure, width=18).pack(side="left", padx=4)
+        ttk.Label(ligne, text="Coupe au plateau (mm) :").pack(side="left", padx=(16, 4))
+        ttk.Entry(ligne, textvariable=self.var_z_coupe, width=6).pack(side="left", padx=4)
+        bouton_mesure = ttk.Button(ligne, text="Mesurer", command=self._lancer_etape4b)
+        bouton_mesure.pack(side="right", padx=4)
+        self.boutons_lancement.append(bouton_mesure)
 
         return cadre
 
@@ -360,6 +415,7 @@ class InterfacePipeline:
         dossier_travail = self.var_dossier_travail.get()
         masquer_fond = self.var_masquer_fond.get()
         repartir_zero = self.var_repartir_zero_1.get()
+        camera_unique = self.var_camera_unique.get()
 
         def cible():
             executer_pipeline_securise(
@@ -367,6 +423,7 @@ class InterfacePipeline:
                 dossier_travail=dossier_travail,
                 masquer_fond=masquer_fond,
                 repartir_de_zero=repartir_zero,
+                camera_unique=camera_unique,
             )
 
         self._lancer_dans_thread("Étape 1 : reconstruction SfM", cible)
@@ -396,6 +453,7 @@ class InterfacePipeline:
         repartir_zero_1 = self.var_repartir_zero_1.get()
         repartir_zero_2 = self.var_repartir_zero_2.get()
         openmvs_bin = self.var_openmvs_bin.get()
+        camera_unique = self.var_camera_unique.get()
 
         def cible():
             if not os.path.isdir(openmvs_bin):
@@ -408,6 +466,7 @@ class InterfacePipeline:
                 dossier_travail=dossier_travail,
                 masquer_fond=masquer_fond,
                 repartir_de_zero=repartir_zero_1,
+                camera_unique=camera_unique,
             )
             densification_openmvs.OPENMVS_BIN = openmvs_bin
             densification_openmvs.densifier(
@@ -451,6 +510,86 @@ class InterfacePipeline:
             )
 
         self._lancer_dans_thread("Étape 3 : maillage", cible)
+
+    def _creer_cible(self):
+        # Rapide (quelques fichiers) : pas besoin d'un thread. On écrit dans le dossier courant,
+        # là où le champ « Cible d'échelle » va la chercher par défaut.
+        try:
+            svg, js = generer_cible_echelle.generer(".")
+        except (ValueError, ImportError, OSError) as e:
+            messagebox.showerror("Cible d'échelle", f"Impossible de créer la cible :\n{e}")
+            return
+        self.var_mise_en_page.set(js)
+        self._ecrire_journal(f"\nCible créée : {svg}\n")
+        messagebox.showinfo(
+            "Cible d'échelle",
+            f"Feuille à imprimer :\n{svg}\n\nImprimer à 100 % (pas « ajuster à la page »), "
+            f"vérifier la barre de 100 mm au pied à coulisse, puis poser la feuille à plat "
+            f"à côté de l'objet, bien visible sur les photos.",
+        )
+
+    def _lire_nombre_optionnel(self, texte, nom, strictement_positif):
+        """Nombre saisi (virgule ou point). None si vide. Affiche l'erreur et renvoie False si invalide."""
+        texte = texte.strip().replace(",", ".")
+        if not texte:
+            return None
+        try:
+            valeur = float(texte)
+            if not (valeur > 0 if strictement_positif else valeur >= 0):
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Paramètre invalide", f"« {nom} » doit être un nombre positif.")
+            return False
+        return valeur
+
+    def _lancer_etape4a(self):
+        dossier_travail = self.var_dossier_travail.get()
+        mise_en_page = self.var_mise_en_page.get()
+        taille = self._lire_nombre_optionnel(
+            self.var_taille_marqueur.get(), "Côté d'un marqueur", True
+        )
+        if taille is False:
+            return
+
+        def cible():
+            echelle.lancer_echelle(dossier_travail, mise_en_page, taille)
+
+        self._lancer_dans_thread("Étape 4a : mise à l'échelle", cible)
+
+    def _lancer_etape4b(self):
+        dossier_travail = self.var_dossier_travail.get()
+        nom = self.var_nom_mesure.get().strip()
+        # Le nom devient un nom de dossier : pas de caractère interdit sous Windows
+        if not nom or any(c in nom for c in '\\/:*?"<>|'):
+            messagebox.showerror(
+                "Paramètre invalide",
+                "« Nom de la mesure » est vide ou contient un caractère interdit (\\ / : * ? \" < > |).",
+            )
+            return
+        z_coupe = self._lire_nombre_optionnel(self.var_z_coupe.get(), "Coupe au plateau", False)
+        if z_coupe is False:
+            return
+        if z_coupe is None:
+            z_coupe = mesure.Z_COUPE_MM_DEFAUT
+        sortie = os.path.join(dossier_travail, "mesures", nom)
+        if os.path.isdir(sortie) and not messagebox.askyesno(
+            "Mesure existante", f"« {nom} » existe déjà et sera remplacée. Continuer ?"
+        ):
+            return
+
+        def cible():
+            rapport = mesure.mesurer(
+                os.path.join(dossier_travail, "modele_pour_impression.stl"),
+                echelle.chemin_echelle(dossier_travail),
+                sortie,
+                nom,
+                z_coupe_mm=z_coupe,
+                chemin_nuage=os.path.join(dossier_travail, "openmvs", "scene_dense.ply"),
+            )
+            print(mesure.resume_texte(rapport))
+            print(f"\nFichiers dans : {os.path.abspath(sortie)}")
+
+        self._lancer_dans_thread("Étape 4b : mesures", cible)
 
     # ------------------------------------------------------------------
     # Visualisation 3D à la demande (processus séparé, jamais automatique)

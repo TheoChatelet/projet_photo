@@ -59,33 +59,10 @@ def test_une_image_sans_pose_est_ignoree(reconstruction):
 # ----------------------------------------------------------------------------------------
 import json
 
-import cv2
 import synth
 from generer_cible_echelle import construire_mise_en_page
 
 MEP = construire_mise_en_page()
-
-
-def _fabriquer_dossier_de_travail(racine, nb=12, rendre=True, s=137.0):
-    """colmap_workspace synthétique : sparse_final + images_redimensionnees, vérité connue."""
-    vrai = synth.SimilitudeVraie(s, axe="x", angle=70.0)
-    rec = pycolmap.Reconstruction()
-    dossier_images = os.path.join(racine, "images_redimensionnees")
-    os.makedirs(dossier_images)
-    for n, c in enumerate(synth.positions_autour(nb, graine=4), start=1):
-        cam = pycolmap.Camera.create_from_model_id(
-            n, pycolmap.CameraModelId.SIMPLE_RADIAL, synth.FOCALE, synth.LARGEUR, synth.HAUTEUR)
-        rec.add_camera_with_trivial_rig(cam)
-        R, t = synth.camera_regarde(c, (0, 0, 0))
-        img = pycolmap.Image(name=f"{n:02d}.png", camera_id=n, image_id=n)
-        rec.add_image_with_trivial_frame(img, pycolmap.Rigid3d(vrai.cam_from_world_colmap(R, t)))
-        image = synth.rendre_image(MEP, R, t, graine=n) if rendre else np.full((synth.HAUTEUR, synth.LARGEUR), 160, np.uint8)
-        ok, tampon = cv2.imencode(".png", image)
-        tampon.tofile(os.path.join(dossier_images, f"{n:02d}.png"))
-    sparse = os.path.join(racine, "sparse_final")
-    os.makedirs(sparse)
-    rec.write(sparse)
-    return vrai
 
 
 def _ecrire_mep(chemin, mep=MEP):
@@ -97,7 +74,7 @@ def _ecrire_mep(chemin, mep=MEP):
 def test_lancer_echelle_de_bout_en_bout(tmp_path, capsys):
     racine = str(tmp_path / "Théo dé")           # accents + espace : cas réel sous Windows
     os.makedirs(racine)
-    vrai = _fabriquer_dossier_de_travail(racine)
+    synth.fabriquer_dossier_de_travail(racine)
     mep = _ecrire_mep(str(tmp_path / "cible.json"))
     r = e.lancer_echelle(racine, mep)
     assert abs(r["mm_par_unite"] / 137.0 - 1) < 0.003
@@ -110,7 +87,7 @@ def test_lancer_echelle_de_bout_en_bout(tmp_path, capsys):
 def test_lancer_echelle_ecrit_les_images_de_debug(tmp_path):
     racine = str(tmp_path / "w")
     os.makedirs(racine)
-    _fabriquer_dossier_de_travail(racine, nb=6)
+    synth.fabriquer_dossier_de_travail(racine, nb=6)
     e.lancer_echelle(racine, _ecrire_mep(str(tmp_path / "c.json")), debug=True)
     assert len(os.listdir(os.path.join(racine, "echelle_debug"))) == 6
 
@@ -119,7 +96,7 @@ def test_lancer_echelle_corrige_la_taille_imprimee(tmp_path):
     """--taille-marqueur-mm : la feuille imprimée mesure 29,85 mm au lieu de 30."""
     racine = str(tmp_path / "w")
     os.makedirs(racine)
-    _fabriquer_dossier_de_travail(racine)
+    synth.fabriquer_dossier_de_travail(racine)
     mep = _ecrire_mep(str(tmp_path / "c.json"))
     sans = e.lancer_echelle(racine, mep)["mm_par_unite"]
     avec = e.lancer_echelle(racine, mep, taille_marqueur_mm=29.85)["mm_par_unite"]
@@ -129,7 +106,7 @@ def test_lancer_echelle_corrige_la_taille_imprimee(tmp_path):
 def test_lancer_echelle_sans_marqueur_dans_les_photos(tmp_path):
     racine = str(tmp_path / "w")
     os.makedirs(racine)
-    _fabriquer_dossier_de_travail(racine, nb=5, rendre=False)
+    synth.fabriquer_dossier_de_travail(racine, nb=5, rendre=False)
     with pytest.raises(e.ErreurEchelle, match="Aucun marqueur"):
         e.lancer_echelle(racine, _ecrire_mep(str(tmp_path / "c.json")))
     assert not os.path.exists(e.chemin_echelle(racine))      # rien d'écrit en cas d'échec

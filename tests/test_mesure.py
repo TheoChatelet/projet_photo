@@ -10,7 +10,6 @@ import pytest
 import formes
 import mesure as m
 import synth
-from echelle import ErreurEchelle
 
 trimesh = pytest.importorskip("trimesh")
 
@@ -395,7 +394,6 @@ def test_un_stl_en_soupe_de_triangles_est_recolle(tmp_path):
 def test_diagnostic_surfaces_inventees():
     """Des sommets loin de tout point du nuage = bulle de Poisson : doit être signalé."""
     V, F, _ = formes.cylindre(n=96)
-    nuage_complet = V[::1]
     # nuage = échantillon de la surface réelle (sommets du cylindre + points intermédiaires)
     nuage = np.vstack([V, (V[F[:, 0]] + V[F[:, 1]] + V[F[:, 2]]) / 3.0])
     _, q, avert, *_ = m.mesurer_maillage(V, F, z_coupe_mm=1.0, nuage_mm=nuage)
@@ -440,4 +438,100 @@ def test_vraies_donnees_du_depot():
     assert r["qualite"]["composantes_trouvees"] > 1        # fragments flottants (connexité par sommets)
     assert r["fiable"], r["avertissements"]
     if os.path.isfile(ply):
-        assert r["qualite"]["part_sommets_loin_du_nuage_pct"] < 1.0
+        part = r["qualite"]["part_sommets_loin_du_nuage_pct"]
+        if part is None:       # sans Open3D, trimesh ne lit pas ce PLY : le diagnostic est ignoré, et le dit
+            assert any("Nuage dense non lu" in n for n in r["notes"])
+        else:
+            assert part < 1.0
+
+
+def test_hauteur_robuste_corrige_le_biais_du_bruit_sans_ecraser_un_dome():
+    rng = np.random.default_rng(7)
+    # dessus plat bruité : le point le plus haut est biaisé, la hauteur lissée l'est beaucoup moins
+    V, F, _ = formes.cylindre(r=25, h=40, n=96)
+    biais_brut, biais_robuste = [], []
+    for _ in range(30):
+        Vb = V + rng.normal(0, 0.05, V.shape)
+        mes = m.mesurer_maillage(Vb, F, z_coupe_mm=1.0)[0]
+        biais_brut.append(mes["hauteur_mm"] - 40.0)
+        biais_robuste.append(mes["hauteur_robuste_mm"] - 40.0)
+    assert np.mean(biais_brut) > 0.07                       # ~ +2,4 sigma = +0,12 mm
+    assert abs(np.mean(biais_robuste)) < 0.5 * np.mean(biais_brut)
+    # sommet de dôme (maillage fin, non bruité) : la moyenne locale l'abaisse de ~ r²/(4R), ici moins de 0,1 mm
+    Vd, Fd, _ = formes.dome(r=30.0, subdivisions=5)
+    mes = m.mesurer_maillage(Vd, Fd, z_coupe_mm=1.0)[0]
+    assert 0 <= mes["hauteur_mm"] - mes["hauteur_robuste_mm"] < 0.1
+
+
+def test_hauteur_robuste_ne_depend_pas_de_la_forme_des_triangles():
+    """Un cylindre à triangles longs (paroi sur toute la hauteur) et le même sous-divisé donnent la même hauteur."""
+    V, F, _ = formes.cylindre(r=25, h=40, n=96)
+    fin = trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(V, F, max_edge=2.0), process=True)   # process : fusionne les sommets
+    Vf, Ff = np.asarray(fin.vertices, float), np.asarray(fin.faces, np.int64)
+    assert len(Ff) > 10 * len(F)
+    assert m.hauteur_robuste(V, F) == pytest.approx(40.0, abs=1e-6)
+    assert m.hauteur_robuste(Vf, Ff) == pytest.approx(40.0, abs=1e-6)
+
+
+# ---------------------------------------------- cohérence échelle / reconstruction
+def test_dimensions_aberrantes_sont_signalees(tmp_path):
+    """Maillage d'un autre scan avec une échelle qui ne lui correspond pas : 100 000 mm de haut."""
+    V, F, _ = formes.cylindre(r=25, h=40, n=96)
+    stl = str(tmp_path / "m.stl")
+    trimesh.Trimesh(V, F, process=False).export(stl)
+    e = tmp_path / "e.json"
+    e.write_text(json.dumps({"mm_par_unite": 5000.0, "methode": "facteur_manuel", "transformation_4x4": None,
+                             "fiable": True}), encoding="utf-8")
+    r = m.mesurer(stl, str(e))
+    assert not r["fiable"] and any("Dimensions aberrantes" in a for a in r["avertissements"])
+    e.write_text(json.dumps({"mm_par_unite": 0.001, "methode": "facteur_manuel", "transformation_4x4": None,
+                             "fiable": True}), encoding="utf-8")
+    assert any("Dimensions aberrantes" in a for a in m.mesurer(stl, str(e))["avertissements"])
+
+
+def test_echelle_d_une_autre_reconstruction_est_detectee(tmp_path):
+    """Reconstruction refaite après le calcul de l'échelle : les mesures seraient fausses sans le dire."""
+    pytest.importorskip("pycolmap")
+    import echelle
+    from generer_cible_echelle import construire_mise_en_page
+    travail = tmp_path / "w"
+    travail.mkdir()
+    vrai = synth.fabriquer_dossier_de_travail(str(travail), nb=8)
+    mep = tmp_path / "cible.json"
+    mep.write_text(json.dumps(construire_mise_en_page()), encoding="utf-8")
+    echelle.lancer_echelle(str(travail), str(mep))
+    V, F, _ = formes.cylindre(r=25, h=40, n=96)
+    stl = str(travail / "modele_pour_impression.stl")
+    trimesh.Trimesh(vrai.colmap_depuis_mm(V), F, process=False).export(stl)
+    e_json = echelle.chemin_echelle(str(travail))
+
+    r = m.mesurer(stl, e_json)
+    assert r["fiable"] and not any("reconstruction" in a.lower() for a in r["avertissements"]), r["avertissements"]
+
+    # on « refait » la reconstruction : le contenu de sparse_final change
+    with open(travail / "sparse_final" / "images.bin", "ab") as f:
+        f.write(b"\x00")
+    r2 = m.mesurer(stl, e_json)
+    assert not r2["fiable"] and any("a changé depuis le calcul de l'échelle" in a for a in r2["avertissements"])
+
+    # reconstruction absente : on le dit, sans accuser à tort
+    import shutil
+    shutil.rmtree(travail / "sparse_final")
+    r3 = m.mesurer(stl, e_json)
+    assert any("non vérifiable" in n for n in r3["notes"]) and r3["fiable"]
+
+
+def test_empreinte_de_reconstruction(tmp_path):
+    import echelle
+    d = tmp_path / "sparse"
+    d.mkdir()
+    assert echelle.empreinte_reconstruction(str(d)) is None                 # rien d'exploitable
+    (d / "images.bin").write_bytes(b"abc")
+    (d / "cameras.bin").write_bytes(b"xyz")
+    h1 = echelle.empreinte_reconstruction(str(d))
+    assert h1 == echelle.empreinte_reconstruction(str(d)) and len(h1) == 64   # stable
+    (d / "images.bin").write_bytes(b"abd")
+    assert echelle.empreinte_reconstruction(str(d)) != h1                     # sensible au contenu
+    (d / "points3D.bin").write_bytes(b"ignore")
+    (d / "images.bin").write_bytes(b"abc")
+    assert echelle.empreinte_reconstruction(str(d)) == h1                     # points3D n'entre pas en jeu
