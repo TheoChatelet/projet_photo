@@ -22,6 +22,7 @@ def executer_pipeline_securise(
     dossier_travail="colmap_workspace",
     masquer_fond=False,
     repartir_de_zero=True,
+    camera_unique=True,
 ):
     """Lance toute la partie COLMAP (SfM).
 
@@ -30,6 +31,10 @@ def executer_pipeline_securise(
         dossier_travail  : dossier où tout est généré (base COLMAP, modèles...)
         masquer_fond     : True = génère des masques GrabCut pour ignorer le fond
         repartir_de_zero : True = supprime le dossier de travail avant de commencer
+        camera_unique    : True = toutes les photos viennent du même appareil et du même
+                           réglage (une seule focale et une seule distorsion à estimer).
+                           Mettre False seulement si les photos mélangent plusieurs
+                           appareils ou plusieurs zooms.
 
     Retourne le dossier des images redimensionnées (réutilisé par la densification).
     """
@@ -104,7 +109,20 @@ def executer_pipeline_securise(
         options_lecture.mask_path = dossier_masques
 
     print("Étape 1/3 : Extraction des points d'intérêt (SIFT)...")
-    pycolmap.extract_features(chemin_bdd, dossier_redim, reader_options=options_lecture)
+    # Une caméra par photo (réglage par défaut de COLMAP) donne 34 focales et 34
+    # distorsions différentes pour le même appareil (essai sur nos 34 photos :
+    # focale de 3432 à 3662 px, distorsion de -0,27 à +0,38), alors qu'une
+    # seule caméra donne 3555 px et une distorsion de 0,08. Ces écarts
+    # déforment légèrement le modèle, donc les mesures.
+    options_extraction = {}
+    mode_camera = getattr(pycolmap, "CameraMode", None)
+    if camera_unique and mode_camera is not None:
+        options_extraction["camera_mode"] = mode_camera.SINGLE
+    elif camera_unique:
+        print("  Attention : cette version de pycolmap ne sait pas imposer une caméra unique.")
+    pycolmap.extract_features(
+        chemin_bdd, dossier_redim, reader_options=options_lecture, **options_extraction
+    )
 
     # Appariement exhaustif (toutes les paires) : avec ~50 photos ça reste
     # rapide, et on ne rate aucune paire qui se recouvre. Pour des centaines

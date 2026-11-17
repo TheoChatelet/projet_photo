@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# Fichiers générés par les tests et Python
+.pytest_cache/
+*.egg-info/
+# Résultats de validation et de mesure produits localement (à garder si besoin, mais pas dans git par défaut)
+validation/resultats/
